@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PermissionRole {
+  VIEW
+  COMMENT
+  EDIT
+}
+
+enum OperationType {
+  INSERT
+  DELETE
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  documents    Document[]
+  versions     Version[]
+  opLogs       OpLog[]
+  permissions  Permission[]
+}
+
+model Document {
+  id          String       @id @default(cuid())
+  ownerId     String
+  title       String
+  description String?
+  content     String       @default("")
+  currentVersion Int       @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  owner       User         @relation(fields: [ownerId], references: [id])
+  permissions Permission[]
+  versions    Version[]
+  opLogs      OpLog[]
+  @@index([ownerId])
+}
+
+model Permission {
+  id         String       @id @default(cuid())
+  userId     String
+  documentId String
+  role       PermissionRole
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  user       User         @relation(fields: [userId], references: [id])
+  document   Document     @relation(fields: [documentId], references: [id])
+
+  @@unique([userId, documentId])
+  @@index([userId, documentId])
+}
+
+model Version {
+  id           String   @id @default(cuid())
+  documentId   String
+  createdById  String
+  snapshotText String
+  createdAt    DateTime @default(now())
+  document     Document @relation(fields: [documentId], references: [id])
+  createdBy    User     @relation(fields: [createdById], references: [id])
+
+  @@index([documentId])
+}
+
+model OpLog {
+  id            String         @id @default(cuid())
+  documentId    String
+  userId        String
+  baseVersion   Int
+  operationType OperationType
+  position      Int
+  payload       String
+  createdAt     DateTime       @default(now())
+  document      Document       @relation(fields: [documentId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+
+  @@index([documentId])
+}
