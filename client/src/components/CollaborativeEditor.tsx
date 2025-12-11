@@ -47,7 +47,7 @@ export function CollaborativeEditor({ documentId, onSelectionChange, onSaveStatu
   useEffect(() => {
     if (!token) return;
 
-    const socket = io("http://localhost:4000", {
+    const socket = io(import.meta.env.VITE_WS_URL || "http://localhost:4000", {
       auth: { token },
     });
     socketRef.current = socket;
