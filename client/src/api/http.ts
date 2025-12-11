@@ -11,7 +11,7 @@ export async function request<T = any>({
   body,
   token,
 }: RequestParams): Promise<T> {
-  const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+  const base = import.meta.env.VITE_API_URL || "http://localhost:4000";
   const url = `${base}${path}`;
   const headers: Record<string, string> = {};
 
