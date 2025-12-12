@@ -79,7 +79,7 @@ export async function createDocument(
 
 export async function updateDocument(
   documentId: string,
-  data: { title?: string; description?: string },
+  data: { title?: string; description?: string; content?: string },
 ) {
   return prisma.document.update({
     where: { id: documentId },

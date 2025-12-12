@@ -10,10 +10,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tiptap/extension-collaboration": "^2.10.3",
+    "@tiptap/extension-collaboration-cursor": "^2.10.3",
+    "@tiptap/extension-text-style": "^2.27.1",
+    "@tiptap/extension-underline": "^2.27.1",
+    "@tiptap/react": "^2.10.3",
+    "@tiptap/starter-kit": "^2.10.3",
+    "docx": "^8.5.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.1.5",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "y-websocket": "^1.5.4",
+    "yjs": "^13.6.21"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

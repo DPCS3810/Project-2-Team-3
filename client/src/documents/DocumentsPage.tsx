@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { request } from "../api/http";
-import { DocumentListItem } from "../components/DocumentListItem";
+import { Panel, PanelHeader, PanelBody } from "../components/ui/Panel";
+import { TVAButton } from "../components/ui/Button";
+import { Badge } from "../components/ui/Badge";
+import { InlineNotice } from "../components/ui/InlineNotice";
 
 interface DocumentDto {
   id: string;
@@ -21,6 +24,8 @@ export function DocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"updated" | "title">("updated");
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const fetchDocuments = async () => {
     if (!token) return;
@@ -63,6 +68,40 @@ export function DocumentsPage() {
     }
   };
 
+  const handleDelete = async (docId: string) => {
+    if (!token) return;
+    try {
+      await request({ path: `/documents/${docId}`, method: "DELETE", token });
+      setDocuments((docs) => docs.filter((d) => d.id !== docId));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setConfirmDelete(null);
+    }
+  };
+
+  const handleDuplicate = async (docId: string) => {
+    if (!token) return;
+    try {
+      const res = await request<{ document: DocumentDto }>({
+        path: `/documents/${docId}/duplicate`,
+        method: "POST",
+        token,
+      });
+      setDocuments((docs) => [res.document, ...docs]);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const filteredDocs = useMemo(() => {
+    const list = documents.filter((doc) => doc.title.toLowerCase().includes(search.toLowerCase()));
+    if (sort === "title") {
+      return [...list].sort((a, b) => a.title.localeCompare(b.title));
+    }
+    return [...list].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  }, [documents, search, sort]);
+
   if (loading) {
     return <div className="page-status">Loading documents...</div>;
   }
@@ -74,37 +113,78 @@ export function DocumentsPage() {
   };
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1>Your Documents</h1>
-        <input
-          type="search"
-          placeholder="Search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, marginLeft: "1rem", marginRight: "1rem" }}
-        />
-        <button onClick={createDocument} disabled={creating}>
-          {creating ? "Creating..." : "New Document"}
-        </button>
-      </div>
-      {error ? <p className="error-text">{error}</p> : null}
-      <ul className="document-list">
-        {documents
-          .filter((doc) => doc.title.toLowerCase().includes(search.toLowerCase()))
-          .map((doc) => (
-          <DocumentListItem
-            key={doc.id}
-            id={doc.id}
-            title={doc.title}
-            ownerEmail={doc.owner?.email}
-            role={resolveRole(doc)}
-            updatedAt={doc.updatedAt}
-            onOpen={(id) => navigate(`/documents/${id}`)}
-          />
-        ))}
-        {documents.length === 0 ? <li className="page-status">No documents yet.</li> : null}
-      </ul>
-    </div>
+    <Panel>
+      <PanelHeader
+        title="Case Files — Documents"
+        actions={
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <input
+              type="search"
+              placeholder="Search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="title-edit-input"
+            />
+            <select value={sort} onChange={(e) => setSort(e.target.value as "updated" | "title")}>
+              <option value="updated">Updated</option>
+              <option value="title">Title</option>
+            </select>
+            <TVAButton onClick={createDocument} disabled={creating}>
+              {creating ? "Creating..." : "New Document"}
+            </TVAButton>
+          </div>
+        }
+      />
+      <PanelBody>
+        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Role</th>
+              <th>Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredDocs.map((doc) => (
+              <tr key={doc.id}>
+                <td>
+                  <div>{doc.title || "Untitled Document"}</div>
+                  <div className="muted">{doc.ownerId === user?.id ? "You" : doc.owner?.email}</div>
+                </td>
+                <td>
+                  <Badge tone={resolveRole(doc) === "OWNER" ? "warn" : "neutral"}>{resolveRole(doc)}</Badge>
+                </td>
+                <td className="muted">{doc.updatedAt ? new Date(doc.updatedAt).toLocaleString() : "—"}</td>
+                <td style={{ display: "flex", gap: "0.35rem" }}>
+                  <TVAButton variant="secondary" onClick={() => navigate(`/documents/${doc.id}`)}>
+                    Open
+                  </TVAButton>
+                  <TVAButton variant="ghost" onClick={() => handleDuplicate(doc.id)}>
+                    Duplicate
+                  </TVAButton>
+                  <TVAButton variant="ghost" onClick={() => setConfirmDelete(doc.id)}>
+                    Delete
+                  </TVAButton>
+                  {confirmDelete === doc.id ? (
+                    <TVAButton variant="primary" onClick={() => handleDelete(doc.id)}>
+                      Confirm?
+                    </TVAButton>
+                  ) : null}
+                </td>
+              </tr>
+            ))}
+            {filteredDocs.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="page-status">
+                  No documents yet.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </PanelBody>
+    </Panel>
   );
 }

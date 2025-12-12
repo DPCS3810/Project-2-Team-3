@@ -8,6 +8,7 @@ interface Props {
   documentId: string;
   onSelectionChange?: (pos: { start: number; end: number }) => void;
   onSaveStatusChange?: (status: { saving: boolean; lastSaved?: number }) => void;
+  onContentChange?: (content: string) => void;
 }
 
 interface InitialStatePayload {
@@ -23,7 +24,7 @@ interface OpAppliedPayload {
   version: number;
 }
 
-export function CollaborativeEditor({ documentId, onSelectionChange, onSaveStatusChange }: Props) {
+export function CollaborativeEditor({ documentId, onSelectionChange, onSaveStatusChange, onContentChange }: Props) {
   const { token, user } = useAuth();
   const [content, setContent] = useState("");
   const [version, setVersion] = useState(0);
@@ -36,6 +37,9 @@ export function CollaborativeEditor({ documentId, onSelectionChange, onSaveStatu
   const userIdRef = useRef<string | undefined>(user?.id);
   const versionRef = useRef(0);
   const pendingOpsRef = useRef(0);
+  const pendingQueueRef = useRef<
+    { opId: string; ops: TextOperation[]; baseVersion: number }[]
+  >([]);
   const undoStack = useRef<{ ops: TextOperation[]; inverseOps: TextOperation[] }[]>([]);
   const redoStack = useRef<{ ops: TextOperation[]; inverseOps: TextOperation[] }[]>([]);
   const selectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
@@ -75,19 +79,23 @@ export function CollaborativeEditor({ documentId, onSelectionChange, onSaveStatu
       prevContentRef.current = payload.content;
     });
 
-    socket.on("op_applied", (payload: OpAppliedPayload) => {
+    socket.on("op_applied", (payload: OpAppliedPayload & { opId?: string }) => {
       if (payload.documentId !== documentId) return;
 
-      // Skip reapplying our own operations; we already applied optimistically.
-      if (userIdRef.current && payload.userId === userIdRef.current) {
-        setVersion(payload.version);
-        versionRef.current = payload.version;
-        return;
+      const isOwn = userIdRef.current && payload.userId === userIdRef.current;
+      if (isOwn && payload.opId) {
+        pendingQueueRef.current = pendingQueueRef.current.filter((p) => p.opId !== payload.opId);
       }
 
       setContent((current) => {
+        // If it's our own op and we already applied, just advance version.
+        if (isOwn) {
+          onContentChange?.(current);
+          return current;
+        }
         const updated = applyOperations(current, payload.operations);
         prevContentRef.current = updated;
+        onContentChange?.(updated);
         return updated;
       });
       setVersion(payload.version);
@@ -174,6 +182,7 @@ export function CollaborativeEditor({ documentId, onSelectionChange, onSaveStatu
     const previous = prevContentRef.current;
     const { ops, inverseOps } = customOps ?? diffToOperationsWithInverse(previous, value);
     setContent(value);
+    onContentChange?.(value);
     prevContentRef.current = value;
 
     if (recordUndo && ops.length > 0) {
@@ -188,10 +197,13 @@ export function CollaborativeEditor({ documentId, onSelectionChange, onSaveStatu
       versionRef.current = nextVersion;
       pendingOpsRef.current += ops.length;
       onSaveStatusChange?.({ saving: true });
+      const opId = crypto.randomUUID();
+      pendingQueueRef.current.push({ opId, ops, baseVersion });
       socketRef.current.emit("op", {
         documentId,
         baseVersion,
         operations: ops,
+        opId,
       });
     }
 

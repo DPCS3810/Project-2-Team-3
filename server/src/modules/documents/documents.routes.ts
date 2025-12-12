@@ -115,18 +115,18 @@ documentsRouter.put(
   ) => {
     const userId = req.user?.id;
     const { id } = req.params;
-  const { title, description } = req.body || {};
+  const { title, description, content } = req.body || {};
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  if (!title && !description) {
-    return res.status(400).json({ error: "title or description required" });
+  if (!title && !description && content === undefined) {
+    return res.status(400).json({ error: "No fields to update" });
   }
 
     try {
       await requireDocumentAccess(userId, id, PermissionRole.EDIT);
-      const document = await updateDocument(id, { title, description });
+      const document = await updateDocument(id, { title, description, content });
       return res.json({ document });
     } catch (error) {
       if (error instanceof HttpError) {
@@ -215,6 +215,28 @@ documentsRouter.post(
     }
   },
 );
+
+documentsRouter.delete("/:id/share/:userId", async (req: Request<DocumentIdParams & { userId: string }>, res: Response) => {
+  const requesterId = req.user?.id;
+  const { id, userId } = req.params;
+
+  if (!requesterId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    await requireDocumentAccess(requesterId, id, PermissionRole.EDIT);
+    await prisma.permission.deleteMany({ where: { documentId: id, userId } });
+    return res.status(204).send();
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    // eslint-disable-next-line no-console
+    console.error("Revoke share error", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 documentsRouter.post("/:id/share", async (req: Request<DocumentIdParams>, res: Response) => {
   const userId = req.user?.id;

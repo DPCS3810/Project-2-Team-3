@@ -63,11 +63,13 @@ export async function applyUserOperations(params: ApplyUserOperationsParams) {
     throw new HttpError(404, "Document not found");
   }
 
-  if ((document.currentVersion ?? 0) !== baseVersion) {
+  const currentVersion = document.currentVersion ?? 0;
+
+  if (currentVersion !== baseVersion) {
     throw new HttpError(409, "Version mismatch");
   }
 
-  const nextVersion = (document.currentVersion ?? 0) + operations.length;
+  const nextVersion = currentVersion + operations.length;
 
   const { entries: opLogEntries, finalContent } = buildOpLogEntries(
     documentId,

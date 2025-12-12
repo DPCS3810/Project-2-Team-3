@@ -6,6 +6,7 @@ export interface CreateDocumentBody {
 export interface UpdateDocumentBody {
   title?: string;
   description?: string;
+  content?: string;
 }
 
 export interface UpsertPermissionBody {

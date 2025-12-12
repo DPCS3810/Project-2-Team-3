@@ -6,6 +6,7 @@ import { RegisterPage } from "./auth/RegisterPage";
 import { DocumentsPage } from "./documents/DocumentsPage";
 import { EditorPage } from "./documents/EditorPage";
 import { useAuth } from "./auth/AuthContext";
+import { SidebarLayout } from "./components/layout/SidebarLayout";
 
 function App() {
   const { user, loading } = useAuth();
@@ -23,7 +24,9 @@ function App() {
           path="/documents"
           element={
             <ProtectedRoute loading={loading}>
-              <DocumentsPage />
+              <SidebarLayout>
+                <DocumentsPage />
+              </SidebarLayout>
             </ProtectedRoute>
           }
         />
@@ -31,7 +34,9 @@ function App() {
           path="/documents/:id"
           element={
             <ProtectedRoute loading={loading}>
-              <EditorPage />
+              <SidebarLayout>
+                <EditorPage />
+              </SidebarLayout>
             </ProtectedRoute>
           }
         />

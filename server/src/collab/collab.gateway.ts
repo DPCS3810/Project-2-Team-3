@@ -98,8 +98,8 @@ export function registerCollabHandlers(io: SocketIOServer) {
 
     socket.on(
       "op",
-      async (payload: { documentId: string; baseVersion: number; operations: TextOperation[] }) => {
-        const { documentId, baseVersion, operations } = payload || {};
+      async (payload: { documentId: string; baseVersion: number; operations: TextOperation[]; opId?: string }) => {
+        const { documentId, baseVersion, operations, opId } = payload || {};
         if (!documentId || !Array.isArray(operations)) return;
         try {
           await requireDocumentAccess(user.id, documentId, PermissionRole.EDIT);
@@ -115,6 +115,7 @@ export function registerCollabHandlers(io: SocketIOServer) {
             userId: user.id,
             operations: transformed,
             version,
+            opId,
           });
         } catch (error) {
           const status = error instanceof HttpError ? error.status : 500;
