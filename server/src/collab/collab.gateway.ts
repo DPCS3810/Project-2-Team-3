@@ -7,7 +7,7 @@ import { loadDocumentState, applyUserOperations } from "./collab.service";
 import { TextOperation } from "./ot";
 import { HttpError } from "../utils/errors";
 
-const ALLOWED_ORIGIN = "http://localhost:5173";
+const ALLOWED_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
 
 function authenticateSocket(token?: string): JwtUserPayload {
   const secret = process.env.JWT_SECRET;
